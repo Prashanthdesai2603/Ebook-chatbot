@@ -1,0 +1,3 @@
+{"text": "<|system|>\nAnswer strictly from the book.\n</s>\n<|user|>\nSummarize the introduction.\n</s>\n<|assistant|>\nThe introduction covers the basic principles of AI.\n</s>"}
+{"text": "<|system|>\nAnswer strictly from the book.\n</s>\n<|user|>\nWhat is RAG?\n</s>\n<|assistant|>\nRAG stands for Retrieval Augmented Generation.\n</s>"}
+

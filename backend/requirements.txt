@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+chromadb
+sentence-transformers
+transformers
+peft
+torch
+pypdf
+langchain
+langchain-community
+python-multipart
+accelerate
+datasets
+bitsandbytes
+scipy
