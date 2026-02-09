@@ -13,3 +13,11 @@ accelerate
 datasets
 bitsandbytes
 scipy
+langchain-text-splitters
+langchain-huggingface
+beautifulsoup4
+requests
+langchain-chroma
+langchain-core
+google-generativeai
+python-dotenv

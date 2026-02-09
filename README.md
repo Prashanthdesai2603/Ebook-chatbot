@@ -29,19 +29,19 @@ npm install
 1.  Place your **PDF ebook** inside `data/ebooks/`.
 2.  Run the ingestion script to create the vector database:
     ```bash
-    python backend/app/ingest.py
+    python app/ingest.py
     ```
 
 ### 3. LoRA Training (Optional)
 If you want to customize the **style** of the assistant (not facts):
 1.  Prepare your dataset:
     ```bash
-    python backend/lora/data_prep.py
+    python lora/data_prep.py
     ```
     (Edit the generated `dataset.jsonl` with your stylistic examples).
 2.  Train the adapter:
     ```bash
-    python backend/lora/train.py
+    python lora/train.py
     ```
     The adapter will start loading automatically next time the backend starts.
 

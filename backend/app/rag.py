@@ -1,8 +1,8 @@
 from typing import List, Tuple
 import os
 from pathlib import Path
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
 from .model import llm_engine
 from .guardrails import guardrails
 
@@ -79,31 +79,13 @@ class RAGPipeline:
 
         context_text = "\n\n".join(context_parts)
 
-        # 3. Construct Prompt with STRICT HARD GUARDRAILS
-        # We explicitly tell it to REFUSE if context is not enough.
-        
-        system_rules = (
-            "1. Answer ONLY from the provided CONTEXT.\n"
-            "2. Do NOT use outside knowledge.\n"
-            "3. If the answer is not in the CONTEXT, return EXACTLY: 'Not Mentioned in the ebook.'\n"
-            "4. Do not answer questions about people, sports, politics, or general knowledge unless present in context."
-        )
-
-        system_prompt = (
-            "<|system|>\n"
-            "You are a helpful assistant for an ebook. Follow these strict rules:\n"
-            f"{system_rules}\n"
-            f"Context:\n{context_text}\n"
-             "</s>\n"
-        )
-        
         # Mode-specific instructions
         if mode == "short":
             instruction = (
                 "Provide a concise answer in 3-5 lines. "
                 "Do not be vague. Be direct."
             )
-            max_new_tokens = 150 
+            max_new_tokens = 300 
             temperature = 0.1
         else:
             instruction = (
@@ -113,12 +95,33 @@ class RAGPipeline:
                 "- Bullet points (3-6 points) for key details\n"
                 "- A concluding sentence."
             )
-            max_new_tokens = 600
+            max_new_tokens = 1000
             temperature = 0.2
 
-        user_prompt = f"<|user|>\n{instruction}\nQuestion: {query}\n</s>\n<|assistant|>\n"
-        
-        full_prompt = system_prompt + user_prompt
+        full_prompt = f"""
+You are an Injection Molding Assistant.
+
+RULES:
+- Answer ONLY from the provided CONTEXT.
+- The context may come from:
+  1) Ebook PDF
+  2) Website (ptonline.com)
+- If the answer is not found in the context, reply exactly:
+  "I don't know based on the available sources."
+
+When relevant, you may mention the source type (ebook or website).
+
+MODE:
+{instruction}
+
+CONTEXT:
+{context_text}
+
+QUESTION:
+{query}
+
+ANSWER:
+""".strip()
 
         # 4. Generate
         answer = llm_engine.generate(full_prompt, max_new_tokens=max_new_tokens, temperature=temperature)
