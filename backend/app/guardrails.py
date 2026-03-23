@@ -4,7 +4,7 @@ import re
 class Guardrails:
     def __init__(self):
         # STRICT CONFIGURATION (RELAXED for Debugging)
-        self.REFUSAL_STRING = "I don't know based on the available sources."
+        self.REFUSAL_STRING = "Based on the available reference material, there is insufficient data to provide a definitive answer."
         self.SIMILARITY_THRESHOLD = 0.2  # Lowered from 0.35 to prevent false negatives
                                           # Note: Check console logs for actual scores seeing 0.3+ is common.
         self.MIN_WORD_OVERLAP_RATIO = 0.05 # Lowered from 0.10 to 0.05 (5%)

@@ -1,0 +1,7 @@
+{
+    "melt temperature": "The temperature of the polymer as it exits the nozzle and enters the mold.",
+    "injection speed": "The speed at which the screw moves forward to fill the cavity.",
+    "packing pressure": "The pressure applied after the cavity is nearly full to compress the melt and compensate for shrinkage.",
+    "cooling time": "The amount of time the part remains in the mold after packing to solidify.",
+    "scientific molding": "A data-driven approach to injection molding that focuses on the four key variables: heat, flow, pressure, and cooling."
+}

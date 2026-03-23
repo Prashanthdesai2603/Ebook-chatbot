@@ -37,7 +37,7 @@ class LLMEngine:
 
         self.model.eval()
 
-    def generate(self, prompt: str, max_new_tokens: int = 200, temperature: float = 0.7) -> str:
+    def generate(self, prompt: str, max_new_tokens: int = 200, temperature: float = 0.2, repetition_penalty: float = 1.15, no_repeat_ngram_size: int = 3) -> str:
         inputs = self.tokenizer(prompt, return_tensors="pt").to("cpu")
         input_len = inputs.input_ids.shape[1]
         
@@ -46,6 +46,8 @@ class LLMEngine:
                 **inputs,
                 max_new_tokens=max_new_tokens,
                 temperature=temperature,
+                repetition_penalty=repetition_penalty,
+                no_repeat_ngram_size=no_repeat_ngram_size,
                 do_sample=True,
                 top_p=0.9
             )

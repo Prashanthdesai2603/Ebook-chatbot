@@ -1,7 +1,14 @@
+import sys
+from pathlib import Path
+# Add project root to sys.path to allow importing from ai/ directory
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from .rag import rag_pipeline
+from ai.rag_pipeline import rag_pipeline
 
 app = FastAPI(title="Offline eBook Chatbot")
 
@@ -33,7 +40,7 @@ def chat_endpoint(request: ChatRequest):
             
         print(f"Received query: {request.message} [{request.mode}]")
         answer = rag_pipeline.answer_query(request.message, mode=request.mode)
-        return ChatResponse(response=answer)
+        return {"response": answer}
         
     except Exception as e:
         print(f"Error processing request: {e}")

@@ -11,8 +11,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 EBOOK_DIR = BASE_DIR / "data" / "ebooks"
 VECTORSTORE_DIR = BASE_DIR / "data" / "vectorstore"
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
-CHUNK_SIZE = 900
-CHUNK_OVERLAP = 200
+CHUNK_SIZE = 600
+CHUNK_OVERLAP = 120
 
 def ingest_documents():
     print(f"Checking for ebooks in {EBOOK_DIR}...")
