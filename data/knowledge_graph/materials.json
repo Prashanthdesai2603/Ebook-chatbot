@@ -1,0 +1,36 @@
+{
+    "ABS": {
+        "full_name": "Acrylonitrile Butadiene Styrene",
+        "typical_melt_temp": "230-260 C",
+        "typical_mold_temp": "40-80 C",
+        "drying_req": "2-4 hours at 80 C",
+        "features": "Good impact resistance, toughness, and aesthetic quality.",
+        "common_defects": [
+            "splay",
+            "sink marks"
+        ]
+    },
+    "PP": {
+        "full_name": "Polypropylene",
+        "typical_melt_temp": "220-280 C",
+        "typical_mold_temp": "20-80 C",
+        "drying_req": "Minimal to none, but 1-2 hours at 80 C if humid.",
+        "features": "Excellent chemical resistance, high fatigue resistance.",
+        "common_defects": [
+            "warpage",
+            "shrinkage"
+        ]
+    },
+    "PC": {
+        "full_name": "Polycarbonate",
+        "typical_melt_temp": "280-320 C",
+        "typical_mold_temp": "80-120 C",
+        "drying_req": "3-4 hours at 120 C (Critical)",
+        "features": "High clarity, high impact strength, high heat resistance.",
+        "common_defects": [
+            "splay",
+            "bubbles",
+            "stress cracks"
+        ]
+    }
+}

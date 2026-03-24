@@ -1,0 +1,100 @@
+{
+    "splay": {
+        "causes": [
+            "moisture in resin",
+            "hydrolysis",
+            "excessive melt temperature",
+            "high injection speed",
+            "contamination",
+            "material degradation"
+        ],
+        "verify": [
+            "moisture level",
+            "drying temperature",
+            "barrel temperature",
+            "injection speed"
+        ],
+        "solutions": [
+            "dry material properly",
+            "reduce melt temperature",
+            "reduce injection speed",
+            "check contamination",
+            "improve mold venting"
+        ],
+        "explanation": "Splay is often caused by moisture or gas trapped in the melt that streaks along the surface of the part during injection."
+    },
+    "burn mark": {
+        "causes": [
+            "inadequate venting",
+            "excessive injection speed",
+            "high melt temperature"
+        ],
+        "verify": [
+            "vent depth",
+            "injection profile",
+            "melt temperature"
+        ],
+        "solutions": [
+            "clean or add vents",
+            "reduce injection speed",
+            "lower melt temperature"
+        ],
+        "explanation": "Burn marks (Dieseling) occur when air is trapped and compressed in a cavity branch during injection, heating it to the point of combustion."
+    },
+    "warpage": {
+        "causes": [
+            "non-uniform cooling",
+            "high internal stress",
+            "inconsistent wall thickness"
+        ],
+        "verify": [
+            "cooling line temperature",
+            "mold temperature delta",
+            "cycle time consistency"
+        ],
+        "solutions": [
+            "optimize cooling layout",
+            "increase cooling time",
+            "adjust packing pressure"
+        ],
+        "explanation": "Warpage is caused by non-uniform shrinkage resulting in internal stresses that deform the part after ejection."
+    },
+    "short shot": {
+        "causes": [
+            "insufficient shot size",
+            "low injection pressure",
+            "high melt viscosity",
+            "cold mold/melt"
+        ],
+        "verify": [
+            "shot volume settings",
+            "injection pressure limit",
+            "melt temperature"
+        ],
+        "solutions": [
+            "increase shot size",
+            "increase injection pressure/speed",
+            "increase melt/mold temperature"
+        ],
+        "explanation": "A short shot occurs when the melt freezes before the mold cavity is completely filled."
+    },
+    "sink mark": {
+        "causes": [
+            "insufficient packing pressure",
+            "short hold time",
+            "thick wall sections",
+            "high melt temperature"
+        ],
+        "verify": [
+            "hold pressure level",
+            "hold time duration",
+            "wall thickness ratios"
+        ],
+        "solutions": [
+            "increase hold pressure",
+            "increase hold time",
+            "reduce wall thickness or add ribs"
+        ],
+        "explanation": "Sink marks are caused by localized shrinkage in thick sections during cooling, pulling the surface inward."
+    }
+}
