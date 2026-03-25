@@ -1,0 +1,29 @@
+# .dockerignore — keep build context lean
+
+# Python
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/venv
+**/.venv
+**/*.egg-info
+**/.pytest_cache
+
+# Node
+**/node_modules
+frontend/dist
+
+# IDE / OS
+**/.idea
+**/.vscode
+**/.DS_Store
+
+# Git
+.git
+.gitignore
+
+# Secrets — never bake into image
+backend/.env
+
+# Docs
+*.md

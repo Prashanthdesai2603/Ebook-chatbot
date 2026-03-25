@@ -1,19 +1,21 @@
+# .gitignore (additions — merge with your existing one)
+
+# Secrets
+backend/.env
+frontend/.env
+
 # Python
 __pycache__/
 *.pyc
+*.pyo
 venv/
+.venv/
+*.egg-info/
+.pytest_cache/
 
 # Node
 node_modules/
-dist/
-
-# Vector DB + data (do not push)
-backend/data/vectorstore/
-backend/data/ebooks/
-backend/data/lora_adapters/
-
-# Env files
-.env
+frontend/dist/
 
 # OS
 .DS_Store

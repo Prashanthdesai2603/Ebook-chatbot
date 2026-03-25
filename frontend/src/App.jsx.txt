@@ -10,7 +10,7 @@ function App() {
     { text: "Hello! I am your Injection Molding Assistant. Ask me anything about process basics, scientific molding, or material properties found in the ebook.", sender: "bot" }
   ])
   const [input, setInput] = useState("")
-  const [mode, setMode] = useState("short") // "short" | "detailed"
+  const [mode, setMode] = useState("short") // short | detailed
   const [loading, setLoading] = useState(false)
   const messagesEndRef = useRef(null)
 
@@ -32,15 +32,14 @@ function App() {
     setLoading(true)
 
     try {
-      // /api is proxied to the backend by:
-      //   DEV  → Vite dev server   (frontend/vite.config.js)
-      //   PROD → Nginx             (docker/nginx/nginx.conf)
-      // Both strip /api before hitting FastAPI, so the route stays /chat.
-      const response = await axios.post('/api/chat', {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+      const response = await axios.post(`${backendUrl}/chat`, {
         message: currentInput,
-        mode,
+        mode: mode
       })
-      setMessages(prev => [...prev, { text: response.data.response, sender: "bot" }])
+
+      const botMsg = { text: response.data.response, sender: "bot" }
+      setMessages(prev => [...prev, botMsg])
     } catch (error) {
       console.error("Error:", error)
       const errorText = error.response

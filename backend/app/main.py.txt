@@ -1,6 +1,9 @@
-# backend/app/main.py
-# sys.path manipulation removed — PYTHONPATH=/app is set in the Dockerfile
-# and in docker-compose, so `from ai.rag_pipeline import ...` resolves cleanly.
+import sys
+from pathlib import Path
+# Add project root to sys.path to allow importing from ai/ directory
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -9,9 +12,10 @@ from ai.rag_pipeline import rag_pipeline
 
 app = FastAPI(title="Offline eBook Chatbot")
 
+# CORS for Frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten this in production if needed
+    allow_origins=["*"],  # In production, specify local frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -19,7 +23,7 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     message: str
-    mode: str = "short"  # "short" | "detailed"
+    mode: str = "short"  # "short" or "detailed"
 
 class ChatResponse(BaseModel):
     response: str
@@ -30,13 +34,14 @@ def read_root():
 
 @app.post("/chat", response_model=ChatResponse)
 def chat_endpoint(request: ChatRequest):
-    if not request.message.strip():
-        raise HTTPException(status_code=400, detail="Empty message")
-
-    print(f"Received query: {request.message} [{request.mode}]")
     try:
+        if not request.message.strip():
+            raise HTTPException(status_code=400, detail="Empty message")
+            
+        print(f"Received query: {request.message} [{request.mode}]")
         answer = rag_pipeline.answer_query(request.message, mode=request.mode)
         return {"response": answer}
+        
     except Exception as e:
         print(f"Error processing request: {e}")
         raise HTTPException(status_code=500, detail=str(e))

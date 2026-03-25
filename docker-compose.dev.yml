@@ -1,0 +1,47 @@
+# docker-compose.dev.yml
+# Hot-reload for both services. Source is mounted as volumes — no rebuild needed
+# for code changes (backend auto-reloads via uvicorn, frontend via Vite HMR).
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up --build
+#   docker compose -f docker-compose.dev.yml down
+
+services:
+
+  backend:
+    build:
+      context: .                         # repo root — needs ai/ + backend/
+      dockerfile: backend/Dockerfile
+      target: dev
+    env_file: ./backend/.env
+    environment:
+      PYTHONPATH: /app                   # mirrors what Dockerfile sets
+    volumes:
+      - ./backend:/app/backend           # live-reload backend source
+      - ./ai:/app/ai                     # live-reload ai source
+      - ./data:/app/data                 # vectorstore + ebooks persist on host
+    ports:
+      - "8000:8000"                      # exposed for direct curl / testing
+    networks:
+      - app-net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      target: dev
+    volumes:
+      - ./frontend/src:/app/src          # Vite HMR picks up changes instantly
+      - ./frontend/public:/app/public
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - app-net
+    restart: unless-stopped
+
+networks:
+  app-net:
+    driver: bridge

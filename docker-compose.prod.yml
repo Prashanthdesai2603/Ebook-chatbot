@@ -1,0 +1,50 @@
+# docker-compose.prod.yml
+# Optimised production build — no source mounts, no dev tooling.
+# Backend is internal-only; only Nginx (port 80) is exposed to the host.
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up --build -d
+#   docker compose -f docker-compose.prod.yml down
+
+services:
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: prod
+    env_file: ./backend/.env
+    environment:
+      PYTHONPATH: /app
+    volumes:
+      - vectorstore:/app/data            # named volume — survives container updates
+    expose:
+      - "8000"                           # internal only; NOT reachable from host
+    networks:
+      - app-net
+    restart: always
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      target: prod
+    ports:
+      - "80:80"                          # sole public-facing port
+    depends_on:
+      - backend
+    networks:
+      - app-net
+    restart: always
+
+volumes:
+  vectorstore:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data                     # binds to repo's data/ folder on host
+
+networks:
+  app-net:
+    driver: bridge
