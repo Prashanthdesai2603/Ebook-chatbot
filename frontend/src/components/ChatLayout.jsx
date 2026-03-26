@@ -12,9 +12,6 @@ const ChatLayout = ({ children }) => {
                         </h1>
                         <p className="text-xs text-gray-400 font-medium">AI-powered knowledge assistant for plastics professionals</p>
                     </div>
-                    <div className="hidden sm:flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold uppercase tracking-widest border border-blue-100">
-                        Offline Enabled
-                    </div>
                 </div>
             </header>
             <main className="flex-1 overflow-hidden relative">
