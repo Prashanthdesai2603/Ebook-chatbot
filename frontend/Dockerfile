@@ -1,7 +1,4 @@
-# frontend/Dockerfile
-# Build context: repo root.
-
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm install

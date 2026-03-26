@@ -1,7 +1,6 @@
-# docker-compose.prod.yml
 # Optimised production build — no source mounts, no dev tooling.
-# Backend is internal-only; only Nginx (port 80) is exposed to the host.
-#
+# Nginx container listens on 8088; your host-level Nginx reverse proxies to it.
+
 # Usage:
 #   docker compose -f docker-compose.prod.yml up --build -d
 #   docker compose -f docker-compose.prod.yml down
@@ -19,10 +18,17 @@ services:
     volumes:
       - vectorstore:/app/data            # named volume — survives container updates
     expose:
-      - "8000"                           # internal only; NOT reachable from host
+      - "8000"                           # internal only; Nginx container talks to it
     networks:
       - app-net
     restart: always
+    healthcheck:
+      # Same generous timing as dev — torch + chroma cold start is slow
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   frontend:
     build:
@@ -30,12 +36,19 @@ services:
       dockerfile: frontend/Dockerfile
       target: prod
     ports:
-      - "80:80"                          # sole public-facing port
+      - "8088:80"                        # host:8088 → container Nginx:80
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy       # Nginx won't start until backend is ready
     networks:
       - app-net
     restart: always
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   vectorstore:
