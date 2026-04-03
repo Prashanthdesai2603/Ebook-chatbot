@@ -4,6 +4,7 @@ import sys
 import time
 from pathlib import Path
 from typing import List, Tuple
+from ai.graph_db import get_graph_context
 
 # Add root to sys.path to allow imports from other directories if needed
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -16,8 +17,17 @@ from langchain_huggingface import HuggingFaceEmbeddings
 # Import custom modules from ai/ (Relative imports for linter)
 from .query_classifier import detect_question_type
 from .knowledge_graph import query_knowledge_graph
+from .graph_db import get_graph_context
 from .context_merger import merge_context
-from .prompts import SYSTEM_PROMPT, get_defect_instruction
+from .prompts import (
+    SYSTEM_PROMPT,
+    get_defect_instruction,
+    get_concept_instruction,
+    get_comparison_instruction,
+    get_list_instruction,
+    get_general_instruction,
+    get_technical_issue_instruction,
+)
 
 # Import API calls from existing backend logic
 try:
@@ -63,18 +73,39 @@ class HybridRAGPipeline:
 
     def validate_response(self, query: str, answer: str, q_type: str, mode: str) -> Tuple[bool, str]:
         """
-        Validates the generated response (Step 3).
-        Defect questions must have at least 4 causes.
+        Validates the generated response.
+        - Defect/list questions must have at least 4 causes in detailed mode.
+        - Any question type with fewer than 3 bullet points triggers a regeneration.
         """
-        if q_type == "defect" and mode != "short":
-            # Heuristic check for number of causes
-            causes_match = re.search(r"Possible Causes[:\s\*\-]*(.*?)(?=Data to Verify|Corrective Actions|Scientific Explanation|$)", answer, re.S | re.I)
+        if mode == "short":
+            return True, ""
+
+        if q_type in ("defect", "list"):
+            # Extract causes section for defect answers
+            causes_match = re.search(
+                r"Possible Causes[:\s\*\-]*(.*?)(?=Data to Verify|Corrective Actions|Scientific Explanation|$)",
+                answer, re.S | re.I
+            )
             if causes_match:
                 causes_text = causes_match.group(1).strip()
-                # Count bullets (•, -, *) or numbered items
                 items = re.findall(r"(?:^|\n)\s*[•\-\*]|(?:\d+\.)", causes_text)
                 if len(items) < 4:
-                    return False, "Your previous response had fewer than 4 causes. Provide at least four possible causes."
+                    return False, (
+                        "INSUFFICIENT CAUSES DETECTED. Your response listed fewer than 4 causes. "
+                        "You MUST provide at least 4 distinct causes covering: material factors, "
+                        "processing factors, machine/mold factors, and environmental factors. "
+                        "Also consider: moisture content, temperature, injection speed, degradation, "
+                        "venting, and contamination as applicable."
+                    )
+            else:
+                # For list-type or general defect questions without the template header
+                bullet_items = re.findall(r"(?:^|\n)\s*[•\-\*]", answer)
+                if len(bullet_items) < 3:
+                    return False, (
+                        "Your answer is too brief. Expand with at least 4 causes or distinct points, "
+                        "covering material, processing, machine/mold, and environmental factors."
+                    )
+
         return True, ""
 
     def answer_query(self, query: str, mode: str = "detailed") -> str:
@@ -90,36 +121,81 @@ class HybridRAGPipeline:
         # 2. Vector Search (Step 2: Top 12)
         vector_context = self.get_vector_context(query, k=12)
         
-        # 3. Knowledge Graph Query (Step 5 priority 1)
-        graph_context = query_knowledge_graph(query)
+        # 3. Knowledge Graph Query (Neo4j and JSON)
+        # --- Get graph data from Neo4j ---
+        neo4j_context = get_graph_context(query)
+
+        # --- JSON graph fallback ---
+        json_graph_context = query_knowledge_graph(query)
+
+        # Combine both
+        graph_context = f"{neo4j_context}\n{json_graph_context}".strip()
         
-        # 4. Merge Context (Step 5: Prioritize KG)
-        # Context Priority: 1. Knowledge graph data, 2. Vector retrieved context
+        # 4. Merge Context (Format as requested via utility)
         merged_context = merge_context(vector_context, graph_context)
         
         # 5. Remove internal file path leaks (Step 7: Source Cleanup)
         merged_context = re.sub(r'[A-Za-z]:\\[^ \n]*', '[Path Removed]', merged_context)
         merged_context = re.sub(r'/[^ \n]+/[^ \n]+', '[Path Removed]', merged_context)
 
-        # 6. LLM Prompt Construction (Step 6: Formatting)
+        # 6. LLM Prompt Construction
         prompt_instructions = ""
-        if q_type == "defect" and mode != "short":
-            prompt_instructions = f"\nYou MUST use the following format for this defect query and provide AT LEAST 4 CAUSES:\n{get_defect_instruction()}"
-        elif q_type == "concept":
-            prompt_instructions = "\nProvide a clear technical explanation and why it matters."
-        elif q_type == "list":
-            prompt_instructions = "\nProvide concise bullet points only."
-        elif q_type == "process":
-            prompt_instructions = "\nProvide typical industrial ranges and mention material grade variations."
-        elif q_type == "compare":
-            prompt_instructions = "\nProvide the answer in a Markdown table with separate columns for comparison. Ensure clear technical comparison points."
-        
+
         if mode == "short":
-            prompt_instructions = "\nLIMIT RESPONSE TO 2-3 SENTENCES. Include most important engineering info."
+            prompt_instructions = (
+                "\nSHORT MODE: Return ONLY 2–3 sentences. "
+                "Include the single most critical engineering point. No headers, no bullets."
+            )
+        elif q_type == "defect":
+            prompt_instructions = (
+                f"\nDEFECT MODE — Follow this structure EXACTLY. Provide AT LEAST 4 CAUSES "
+                f"spanning material, processing, machine/mold, and environmental factors:\n"
+                f"{get_defect_instruction()}"
+                f"\n\nIMPORTANT: Also consider these factor categories in your causes: "
+                "moisture/drying, melt temperature, injection speed, thermal degradation, "
+                "venting adequacy, gate size, contamination, and ambient humidity."
+            )
+        elif q_type == "concept":
+            prompt_instructions = (
+                f"\nCONCEPT MODE — Follow this structure EXACTLY:\n"
+                f"{get_concept_instruction()}"
+            )
+        elif q_type == "compare":
+            prompt_instructions = (
+                f"\nCOMPARISON MODE — Follow this structure EXACTLY:\n"
+                f"{get_comparison_instruction()}"
+            )
+        elif q_type == "list":
+            prompt_instructions = (
+                f"\nLIST MODE — Follow this structure:\n"
+                f"{get_list_instruction()}"
+                "\nProvide minimum 4 items with brief engineering notes per item."
+            )
+        elif q_type == "process":
+            prompt_instructions = (
+                "\nPROCESS MODE: Provide typical industrial ranges with units. "
+                "State consequences of operating outside the recommended range. "
+                "Note material-grade dependencies."
+            )
+        else:
+            prompt_instructions = (
+                f"\nGENERAL MODE — Follow this structure:\n"
+                f"{get_general_instruction()}"
+            )
+
+        # Explicit graph context prioritization directive
+        graph_priority_note = ""
+        if graph_context and graph_context.strip() and graph_context.strip() != "No specific engineering knowledge found in graph.":
+            graph_priority_note = (
+                "\n\n⚠️  GRAPH DATABASE PRIORITY: The 'Graph Knowledge' section below contains "
+                "curated expert-validated cause data. You MUST incorporate these graph-supplied causes "
+                "into your Possible Causes list. Do NOT ignore this data."
+            )
 
         full_prompt = f"""{SYSTEM_PROMPT}
+{graph_priority_note}
 
-CONTEXT:
+CONTEXT (use ALL relevant data from both Vector and Graph Knowledge sections below):
 {merged_context}
 
 USER QUESTION:
@@ -129,8 +205,9 @@ QUESTION TYPE: {q_type}
 MODE: {mode}
 {prompt_instructions}
 
-Final Rule: Never mention local file paths. Always end with:
-Source: Injection Molding Knowledge Base
+ABSOLUTE FINAL RULES:
+- Never mention local file paths.
+- Always end your response with: Source: Injection Molding Knowledge Base
 """
 
         # 7. Model Call
@@ -138,7 +215,7 @@ Source: Injection Molding Knowledge Base
         answer: str = ""
         
         for attempt in range(2):
-            max_tokens: int = 250 if mode == "short" else 1500
+            max_tokens: int = 250 if mode == "short" else 2000
             answer = generate_gemini_answer(full_prompt, temperature=0.1, max_tokens=max_tokens)
             
             # Step 3: Response Validation
