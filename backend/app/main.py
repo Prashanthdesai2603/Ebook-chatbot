@@ -9,13 +9,14 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from ai.rag_pipeline import rag_pipeline
+from backend.app.mysql_logger import chat_logger
 
 app = FastAPI(title="Offline eBook Chatbot")
 
 # CORS for Frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify local frontend URL
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,6 +41,10 @@ def chat_endpoint(request: ChatRequest):
             
         print(f"Received query: {request.message} [{request.mode}]")
         answer = rag_pipeline.answer_query(request.message, mode=request.mode)
+        
+        # Log to MySQL (Optional task 7)
+        chat_logger.log_chat(request.message, answer)
+        
         return {"response": answer}
         
     except Exception as e:
