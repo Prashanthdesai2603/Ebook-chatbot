@@ -8,7 +8,7 @@ if str(ROOT_DIR) not in sys.path:
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from ai.rag_pipeline import rag_pipeline
+from backend.ai.rag_pipeline import rag_pipeline
 from backend.app.mysql_logger import chat_logger
 
 app = FastAPI(title="Offline eBook Chatbot")
