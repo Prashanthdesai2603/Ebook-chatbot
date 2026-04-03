@@ -1,6 +1,6 @@
-# Offline eBook Chatbot (RAG + LoRA)
+# eBook Chatbot 
 
-A strictly offline, privacy-first AI chatbot that answers questions based **only** on a provided PDF ebook.
+  privacy-first AI chatbot that answers questions based **only** on a provided PDF ebook.
 It uses **Retrieval Augmented Generation (RAG)** for factual accuracy and **LoRA (Low-Rank Adaptation)** for response styling.
 
 ## System Requirements
