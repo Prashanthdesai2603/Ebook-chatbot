@@ -13,11 +13,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# ── Deps first — maximises layer cache re-use ─────────────────────────────────
+# Upgrade pip first — avoids resolver edge-cases on slim images
+RUN pip install --no-cache-dir --upgrade pip
+
+# Deps first — maximises layer cache re-use
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# ── Application source ────────────────────────────────────────────────────────
+# Application source
 COPY backend/ ./backend/
 COPY ai/       ./ai/
 
@@ -39,6 +42,8 @@ CMD ["uvicorn", "backend.app.main:app", \
 
 # ─────────────────────────────────────────────────────────────────────────────
 FROM base AS prod
+# 2 workers: intentionally conservative for low-RAM VPS.
+# Increase to (2 * CPU cores + 1) if the host has headroom.
 CMD ["uvicorn", "backend.app.main:app", \
      "--host", "0.0.0.0", "--port", "8000", \
      "--workers", "2"]

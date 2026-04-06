@@ -1,0 +1,29 @@
+# ── Node ──────────────────────────────────────────────────────────────────────
+frontend/node_modules
+frontend/.env
+frontend/.env.*
+frontend/dist
+
+# ── Python ────────────────────────────────────────────────────────────────────
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/*.egg-info
+backend/.env
+backend/.env.*
+.venv
+venv
+
+# ── Data / models (mounted as volumes at runtime) ─────────────────────────────
+data/
+
+# ── Git / IDE ─────────────────────────────────────────────────────────────────
+.git
+.gitignore
+.github
+.vscode
+.idea
+
+# ── Docker compose files (not needed inside image) ────────────────────────────
+docker-compose*.yml
