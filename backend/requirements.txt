@@ -21,3 +21,5 @@ langchain-chroma
 langchain-core
 google-generativeai
 python-dotenv
+neo4j
+mysql-connector-python

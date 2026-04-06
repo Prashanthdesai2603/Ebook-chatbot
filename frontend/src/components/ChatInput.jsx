@@ -137,8 +137,6 @@ const ChatInput = ({ input, setInput, onSend, loading, mode, setMode }) => {
                 <div className="mt-3 text-center">
                     <p className="text-[11px] text-gray-400 flex items-center justify-center gap-1.5">
                         <span className="flex h-1.5 w-1.5 rounded-full bg-green-500"></span>
-                        Offline AI Knowledge Assistant
-                        <span className="mx-1">•</span>
                         Answers generated from ebook knowledge base
                     </p>
                 </div>

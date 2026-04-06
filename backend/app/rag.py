@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 VECTORSTORE_DIR = BASE_DIR / "data" / "vectorstore"
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
-from ai.prompts import SYSTEM_PROMPT, get_defect_instruction
+from backend.ai.prompts import SYSTEM_PROMPT, get_defect_instruction
 
 # Using shared SYSTEM_PROMPT from ai/prompts.py
 
