@@ -1,43 +1,81 @@
 import os
 import mysql.connector
-from datetime import datetime
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-# MySQL configuration
-MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
-MYSQL_USER = os.getenv("MYSQL_USER", "root")
-MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "password")
-MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", "ebook_chatbot")
+DB_MODE = os.environ.get("DB_MODE", "local")  # local | socket | remote
+
+
+def _build_connect_kwargs() -> dict:
+    """
+    Return the correct keyword-args for mysql.connector.connect()
+    based on DB_MODE.
+
+    MODE 1 – local:  TCP to host.docker.internal (or any explicit DB_HOST)
+    MODE 2 – socket: Unix socket mounted into the container
+    MODE 3 – remote: TCP to a remote host / RDS endpoint
+    """
+    base = {
+        "user":     os.environ["DB_USER"],
+        "password": os.environ["DB_PASSWORD"],
+        "database": os.environ["DB_NAME"],
+        "charset":  "utf8mb4",
+        "connection_timeout": 10,
+    }
+
+    if DB_MODE == "socket":
+        # Unix socket — MySQL sees connection as 'localhost'; no % grant needed.
+        base["unix_socket"] = os.environ.get(
+            "MYSQL_SOCKET_PATH", "/var/run/mysqld/mysqld.sock"
+        )
+    else:
+        # local  → DB_HOST defaults to host.docker.internal
+        # remote → DB_HOST must be set explicitly in .env
+        base["host"] = os.environ.get(
+            "DB_HOST",
+            "host.docker.internal" if DB_MODE == "local" else None,
+        )
+        base["port"] = int(os.environ.get("DB_PORT", 3306))
+
+    return base
+
 
 class MySQLChatLogger:
     def __init__(self):
         self.conn = None
         try:
-            self.conn = mysql.connector.connect(
-                host=MYSQL_HOST,
-                user=MYSQL_USER,
-                password=MYSQL_PASSWORD
-            )
+            kwargs = _build_connect_kwargs()
+            db_name = kwargs.pop("database")          # connect without DB first
+
+            self.conn = mysql.connector.connect(**kwargs)
             cursor = self.conn.cursor()
-            # Create database if not exists
-            cursor.execute(f"CREATE DATABASE IF NOT EXISTS {MYSQL_DATABASE}")
-            cursor.execute(f"USE {MYSQL_DATABASE}")
-            # Create table if not exists
+
+            # Ensure database + table exist
+            cursor.execute(
+                f"CREATE DATABASE IF NOT EXISTS `{db_name}` "
+                f"CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+            )
+            cursor.execute(f"USE `{db_name}`")
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS chat_history (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    query TEXT NOT NULL,
-                    response TEXT NOT NULL,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                    id        INT AUTO_INCREMENT PRIMARY KEY,
+                    query     TEXT        NOT NULL,
+                    response  TEXT        NOT NULL,
+                    timestamp DATETIME    DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             self.conn.commit()
-            print("Connected to MySQL for chat history logging.")
+
+            # Re-select the DB so subsequent queries don't need USE
+            self.conn.database = db_name
+            print(f"[mysql_logger] Connected (mode={DB_MODE}). Chat history logging active.")
+
+        except KeyError as e:
+            print(f"[mysql_logger] Missing required env var: {e}. Logging disabled.")
+            self.conn = None
         except Exception as e:
-            print(f"Failed to connect to MySQL: {e}")
+            print(f"[mysql_logger] Failed to connect (mode={DB_MODE}): {e}. Logging disabled.")
             self.conn = None
 
     def log_chat(self, query: str, response: str):
@@ -45,15 +83,18 @@ class MySQLChatLogger:
             return
         try:
             cursor = self.conn.cursor()
-            query_sql = "INSERT INTO chat_history (query, response) VALUES (%s, %s)"
-            cursor.execute(query_sql, (query, response))
+            cursor.execute(
+                "INSERT INTO chat_history (query, response) VALUES (%s, %s)",
+                (query, response),
+            )
             self.conn.commit()
         except Exception as e:
-            print(f"Error logging chat to MySQL: {e}")
+            print(f"[mysql_logger] Error logging chat: {e}")
 
     def close(self):
         if self.conn:
             self.conn.close()
 
-# Singleton instance
+
+# Singleton — imported by main.py
 chat_logger = MySQLChatLogger()

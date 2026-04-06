@@ -9,29 +9,35 @@ services:
 
   backend:
     build:
-      context: .                         # repo root — needs ai/ + backend/
+      context: .                        # repo root — needs ai/ + backend/
       dockerfile: backend/Dockerfile
       target: dev
     env_file: ./backend/.env
     environment:
       PYTHONPATH: /app
+      # Neo4j connection (consumed by backend/ai code via os.environ)
+      NEO4J_URI: ${NEO4J_URI:-bolt://neo4j:7687}
+      NEO4J_USERNAME: ${NEO4J_USERNAME:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-neo4j_dev_password}
     volumes:
-      - ./backend:/app/backend           # live-reload backend source
-      - ./ai:/app/ai                     # live-reload ai source
-      - ./data:/app/data                 # vectorstore + ebooks persist on host
+      - ./backend:/app/backend          # live-reload backend source
+      - ./ai:/app/ai                    # live-reload ai source
+      - ./data:/app/data                # vectorstore + ebooks persist on host
     ports:
-      - "8000:8000"                      # exposed for direct curl / testing
+      - "8000:8000"                     # exposed for direct curl / testing
+    depends_on:
+      neo4j:
+        condition: service_healthy      # wait for Neo4j bolt to be ready
     networks:
       - app-net
     restart: unless-stopped
     healthcheck:
-      # Polls the root endpoint — only passes once the model is loaded and
-      # FastAPI is serving. interval is generous because torch/chroma startup can take 30-60 s on first run.
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s                  # give model load time before first check
+      start_period: 60s                 # give model load time before first check
+
 
   frontend:
     build:
@@ -39,13 +45,13 @@ services:
       dockerfile: frontend/Dockerfile
       target: dev
     volumes:
-      - ./frontend/src:/app/src          # Vite HMR picks up changes instantly
+      - ./frontend/src:/app/src         # Vite HMR picks up changes instantly
       - ./frontend/public:/app/public
     ports:
       - "5173:5173"
     depends_on:
       backend:
-        condition: service_healthy       # waits for backend healthcheck to pass
+        condition: service_healthy      # waits for backend healthcheck to pass
     networks:
       - app-net
     restart: unless-stopped
@@ -55,6 +61,39 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+
+  neo4j:
+    image: neo4j:5.20-community          # pin minor version for reproducibility
+    environment:
+      NEO4J_AUTH: ${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:-neo4j_dev_password}
+      # Allow larger heap for graph queries on dev machines
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1g
+      NEO4J_server_memory_pagecache__size: 256m
+    ports:
+      - "7474:7474"                     # Neo4j Browser → http://localhost:7474
+      - "7687:7687"                     # Bolt protocol (driver connection)
+    volumes:
+      - neo4j_data:/data                # graph persists across restarts
+      - neo4j_logs:/logs
+    networks:
+      - app-net
+    restart: unless-stopped
+    healthcheck:
+      # Bolt port check — confirms Neo4j is ready to accept driver connections
+      test: ["CMD", "wget", "-qO-", "http://localhost:7474/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s                 # Neo4j JVM startup takes ~20s
+
+
+volumes:
+  neo4j_data:
+    driver: local
+  neo4j_logs:
+    driver: local
 
 networks:
   app-net:

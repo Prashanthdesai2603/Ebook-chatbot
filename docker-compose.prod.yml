@@ -1,10 +1,3 @@
-# Optimised production build — no source mounts, no dev tooling.
-# Nginx container listens on 8088; your host-level Nginx reverse proxies to it.
-
-# Usage:
-#   docker compose -f docker-compose.prod.yml up --build -d
-#   docker compose -f docker-compose.prod.yml down
-
 services:
 
   backend:
@@ -15,20 +8,55 @@ services:
     env_file: ./backend/.env
     environment:
       PYTHONPATH: /app
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_MODE: ${DB_MODE:-local}        # local | socket | remote
     volumes:
-      - vectorstore:/app/data            # named volume — survives container updates
+      - vectorstore:/app/data           # named volume — survives container updates
+      - ${MYSQL_SOCKET_PATH:-/tmp/fake.sock}:/var/run/mysqld/mysqld.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     expose:
-      - "8000"                           # internal only; Nginx container talks to it
+      - "8000"                          # internal only; nginx talks to it
     networks:
       - app-net
     restart: always
     healthcheck:
-      # Same generous timing as dev — torch + chroma cold start is slow
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
-      interval: 30s
+      # Checks DB reachability (TCP or socket) depending on DB_MODE,
+      # then confirms FastAPI is up. torch + chroma cold-start is slow.
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - |
+          import socket, sys, os
+          mode = os.environ.get('DB_MODE', 'local')
+          if mode == 'socket':
+              sock = os.environ.get('MYSQL_SOCKET_PATH', '/var/run/mysqld/mysqld.sock')
+              if not os.path.exists(sock):
+                  print(f"Socket not found: {sock}")
+                  sys.exit(1)
+          else:
+              host = os.environ.get('DB_HOST', '127.0.0.1')
+              port = int(os.environ.get('DB_PORT', 3306))
+              try:
+                  s = socket.create_connection((host, port), timeout=5)
+                  s.close()
+              except Exception as e:
+                  print(f"DB unreachable: {e}")
+                  sys.exit(1)
+          import urllib.request
+          try:
+              urllib.request.urlopen('http://localhost:8000/', timeout=5)
+          except Exception as e:
+              print(f"FastAPI not ready: {e}")
+              sys.exit(1)
+          sys.exit(0)
+      interval: 20s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 60s                 # model load (torch + chroma) takes time
+
 
   frontend:
     build:
@@ -36,10 +64,10 @@ services:
       dockerfile: frontend/Dockerfile
       target: prod
     ports:
-      - "8088:80"                        # host:8088 → container Nginx:80
+      - "8088:80"                       # host:8088 → container nginx:80
     depends_on:
       backend:
-        condition: service_healthy       # Nginx won't start until backend is ready
+        condition: service_healthy      # nginx won't start until backend is ready
     networks:
       - app-net
     restart: always
@@ -56,7 +84,7 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: ./data                     # binds to repo's data/ folder on host
+      device: ./data                    # binds to repo's data/ folder on host
 
 networks:
   app-net:
