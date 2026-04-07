@@ -1,237 +1,212 @@
 import os
+import re
+import sys
+import json
+import time
 from pathlib import Path
-from neo4j import GraphDatabase
 from dotenv import load_dotenv
+from neo4j import GraphDatabase
 
-# File is now at backend/ai/build_graph.py
-# .parent      = backend/ai/
-# .parent.parent = backend/    <-- where .env lives
-ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+# Add project root to sys.path
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+sys.path.append(str(ROOT_DIR))
+
+# LangChain Chroma and Embeddings
+try:
+    from langchain_chroma import Chroma
+    from langchain_huggingface import HuggingFaceEmbeddings
+except ImportError:
+    print("Error: Required LangChain packages not found. Please install langchain-chroma and langchain-huggingface.")
+    sys.exit(1)
+
+# Import Gemini logic
+try:
+    from backend.app.gemini_model import generate_gemini_answer
+except ImportError:
+    print("Error: Could not find backend.app.gemini_model. Ensure sys.path is correct.")
+    sys.exit(1)
+
+# ───────────── CONFIGURATION ─────────────
+ENV_PATH = ROOT_DIR / "backend" / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
+
+VECTORSTORE_DIR = ROOT_DIR / "data" / "vectorstore"
+EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 USER = os.getenv("NEO4J_USERNAME", "neo4j")
 PASSWORD = os.getenv("NEO4J_PASSWORD", "neo4j123")
 
-print(f"Connecting to Neo4j at {URI} as '{USER}'...")
+# Initialize Neo4j Driver
 driver = GraphDatabase.driver(URI, auth=(USER, PASSWORD))
 
+# ───────────── GRAPH FUNCTIONS ─────────────
 
-# ──────────────────────────────────────────────────────────────
-# Low-level helper: single MERGE insert using the module driver
-# ──────────────────────────────────────────────────────────────
-def insert_graph(material, issue, causes, solutions):
+def insert_graph(material: str, issue: str, causes: list, solutions: list):
+    """
+    Insert or merge material, issue, and relationship data into Neo4j.
+    Uses MERGE to avoid duplicates.
+    """
     query = """
-    MERGE (m:Material {name:$material})
-    MERGE (i:Issue {name:$issue})
+    MERGE (m:Material {name: $material})
+    MERGE (i:Issue {name: $issue})
     MERGE (m)-[:HAS_ISSUE]->(i)
 
+    WITH i
     FOREACH (c IN $causes |
-        MERGE (cause:Cause {name:c})
+        MERGE (cause:Cause {name: c})
         MERGE (i)-[:CAUSED_BY]->(cause)
     )
 
+    WITH i
     FOREACH (s IN $solutions |
-        MERGE (sol:Solution {name:s})
+        MERGE (sol:Solution {name: s})
         MERGE (i)-[:HAS_SOLUTION]->(sol)
     )
     """
-    with driver.session() as session:
-        session.run(query, material=material, issue=issue, causes=causes, solutions=solutions)
+    try:
+        with driver.session() as session:
+            session.run(query, material=material, issue=issue, causes=causes, solutions=solutions)
+    except Exception as e:
+        print(f"Neo4j Insert Error: {e}")
 
+def extract_graph_from_text(text: str) -> dict:
+    """
+    Uses LLM (Gemini) to extract structured JSON from chunk text.
+    Ensures normalized issue names and short causes/solutions.
+    """
+    prompt = f"""
+    You are an expert Injection Molding Engineering Assistant. 
+    Analyze the following technical text and extract structured troubleshooting data.
 
-# ──────────────────────────────────────────────────────────────
-# Full ebook graph using GraphDB class (relative import)
-# ──────────────────────────────────────────────────────────────
-def insert_full_ebook_graph():
-    from backend.ai.graph_db import GraphDB   # absolute import works since ROOT is on sys.path
-    db = GraphDB()
+    Required JSON format:
+    {{
+      "material": "Polymer Name (e.g. ABS, Nylon, PC) or 'General' if not specified",
+      "issue": "Normalized Issue Name (e.g. Splay, Burn Marks, Warpage, Sink Mark, Short Shot)",
+      "causes": ["List of 1–3 word specific causes"],
+      "solutions": ["List of 1–3 word specific solutions"]
+    }}
 
-    data = [
-        # --- SPLAY ---
-        {
-            "material": "Nylon",
-            "issue": "Splay",
-            "causes": [
-                "Moisture in resin",
-                "Excessive melt temperature",
-                "High injection speed",
-                "Material degradation"
-            ],
-            "solutions": [
-                "Proper drying of material",
-                "Reduce melt temperature",
-                "Optimize injection speed"
-            ]
-        },
-        # --- BURN MARKS ---
-        {
-            "material": "ABS",
-            "issue": "Burn Marks",
-            "causes": [
-                "Trapped air",
-                "High injection speed",
-                "Poor venting"
-            ],
-            "solutions": [
-                "Improve venting",
-                "Reduce injection speed",
-                "Optimize mold design"
-            ]
-        },
-        # --- WARPAGE ---
-        {
-            "material": "PP",
-            "issue": "Warpage",
-            "causes": [
-                "Uneven cooling",
-                "Material shrinkage variation",
-                "Improper mold temperature"
-            ],
-            "solutions": [
-                "Uniform cooling",
-                "Optimize mold temperature",
-                "Balanced mold design"
-            ]
-        },
-        # --- SINK MARK ---
-        {
-            "material": "PC",
-            "issue": "Sink Mark",
-            "causes": [
-                "Thick sections",
-                "Low packing pressure",
-                "Insufficient cooling"
-            ],
-            "solutions": [
-                "Increase packing pressure",
-                "Reduce thickness",
-                "Improve cooling"
-            ]
-        },
-        # --- SHORT SHOT ---
-        {
-            "material": "ABS",
-            "issue": "Short Shot",
-            "causes": [
-                "Low injection pressure",
-                "Low melt temperature",
-                "Poor flow"
-            ],
-            "solutions": [
-                "Increase injection pressure",
-                "Increase melt temperature",
-                "Improve flow design"
-            ]
-        },
-        # --- CONCEPT: PVT ---
-        {
-            "material": "Polymer",
-            "issue": "PVT Behavior",
-            "causes": [
-                "Temperature change",
-                "Pressure variation"
-            ],
-            "solutions": [
-                "Control cooling curve",
-                "Maintain linear shrinkage",
-                "Optimize process consistency"
-            ]
-        },
-        # --- COLOR VARIATION ---
-        {
-            "material": "Plastic",
-            "issue": "Color Variation",
-            "causes": [
-                "Improper mixing",
-                "Incompatible colorants",
-                "Separation of pigments"
-            ],
-            "solutions": [
-                "Uniform mixing",
-                "Use compatible carriers",
-                "Control processing conditions"
-            ]
-        }
-    ]
+    Rules:
+    - Normalize issue names (e.g., 'silver streaks' -> 'Splay', 'scorch' -> 'Burn Marks').
+    - Keep causes and solutions extremely brief (1–3 words max).
+    - Avoid long sentences or paragraphs.
+    - If no clear material/issue relationship is found, return exactly: null
+    - Return ONLY the JSON object. Do NOT include markdown code blocks (like ```json).
 
-    with db.driver.session() as session:
-        for item in data:
-            session.run("""
-                MERGE (m:Material {name: $material})
-                MERGE (i:Issue {name: $issue})
-                MERGE (m)-[:HAS_ISSUE]->(i)
-                WITH i
-                UNWIND $causes AS cause
-                MERGE (c:Cause {name: cause})
-                MERGE (i)-[:CAUSED_BY]->(c)
-                WITH i
-                UNWIND $solutions AS solution
-                MERGE (s:Solution {name: solution})
-                MERGE (i)-[:HAS_SOLUTION]->(s)
-            """,
-            material=item["material"],
-            issue=item["issue"],
-            causes=item["causes"],
-            solutions=item["solutions"]
-            )
+    Text:
+    {text}
+    """
+    
+    try:
+        response = generate_gemini_answer(prompt, temperature=0.1, max_tokens=500).strip()
+        
+        # Clean response from any markdown blocks if the LLM ignored instructions
+        if response.startswith("```"):
+            # Use regex to find the first JSON object
+            match = re.search(r'\{(.*)\}', response, re.DOTALL)
+            if match:
+                response = match.group(0)
+        
+        if response.lower() == "null" or not response:
+            return None
 
-    db.close()
-    print("✅ FULL EBOOK GRAPH INSERTED")
+        # Parse JSON safely
+        data = json.loads(response)
+        
+        # Basic validation
+        if not data.get("material") or not data.get("issue"):
+            return None
+            
+        return data
+        
+    except json.JSONDecodeError:
+        # One last attempt with regex if JSON parsing failed
+        try:
+            match = re.search(r'\{(.*)\}', response, re.DOTALL)
+            if match:
+                return json.loads(match.group(0))
+        except:
+            return None
+    except Exception as e:
+        print(f"Extraction error: {e}")
+        return None
 
+def build_from_vector_db(batch_limit: int = 100):
+    """
+    Loads documents from Chroma and populates Neo4j knowledge graph.
+    """
+    print("--- Starting Graph Database Build ---")
+    
+    # 1. Load Vector Store
+    if not VECTORSTORE_DIR.exists():
+        print(f"Error: Vector Store not found at {VECTORSTORE_DIR}")
+        return
 
-# ──────────────────────────────────────────────────────────────
-# build_sample: inserts curated sample data using module driver
-# ──────────────────────────────────────────────────────────────
-def build_sample():
-    insert_graph(
-        "Nylon", "Splay",
-        ["Moisture", "High Temperature", "Injection Speed", "Material Degradation"],
-        ["Proper Drying", "Reduce Temperature", "Optimize Speed"]
-    )
-    insert_graph(
-        "ABS", "Burn Marks",
-        ["Trapped Air", "High Injection Speed", "Poor Venting"],
-        ["Improve Venting", "Reduce Speed", "Lower Temperature"]
-    )
-    insert_graph(
-        "Polypropylene", "Warpage",
-        ["Uneven Cooling", "Mold Temperature Variation", "Residual Stress", "High Packing Pressure"],
-        ["Uniform Cooling", "Optimize Mold Design"]
-    )
-    insert_graph(
-        "ABS", "Sink Marks",
-        ["Low Packing Pressure", "Thick Sections", "High Temperature", "Short Hold Time"],
-        ["Increase Packing Pressure", "Optimize Cooling"]
-    )
-    insert_graph(
-        "Nylon", "Splay",
-        ["Moisture Content", "High Temperature", "Injection Speed", "Material Degradation"],
-        ["Proper Drying", "Reduce Temperature", "Optimize Speed"]
-    )
-    insert_graph(
-        "Polycarbonate", "Flash",
-        ["High Injection Pressure", "Mold Cavity Imbalance", "Poor Clamping Force"],
-        ["Reduce Pressure", "Improve Mold Design", "Increase Clamping Force"]
-    )
-    insert_graph(
-        "Polypropylene", "Short Shot",
-        ["Low Melt Temperature", "Insufficient Packing Time", "Material Degradation"],
-        ["Increase Temperature", "Extend Hold Time", "Use Virgin Material"]
-    )
-    insert_graph(
-        "PP", "Warpage",
-        ["Uneven Cooling", "High Mold Temperature", "Thick Wall Section", "High Packing Pressure"],
-        ["Optimize Cooling Channels", "Reduce Mold Temperature", "Uniform Wall Thickness"]
-    )
-    insert_graph(
-        "PC", "Sink Mark",
-        ["Insufficient Packing Pressure", "Short Holding Time", "Thick Wall Section", "High Melt Temperature"],
-        ["Increase Holding Pressure", "Extend Hold Time", "Reduce Wall Thickness"]
+    print("Initializing embeddings and loading vectorstore...")
+    embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
+    vectorstore = Chroma(
+        persist_directory=str(VECTORSTORE_DIR.resolve()),
+        embedding_function=embeddings
     )
 
+    # 2. Extract Documents
+    # get() retrieves all data stored in Chroma
+    all_data = vectorstore.get()
+    documents = all_data.get("documents", [])
+    
+    if not documents:
+        print("No documents found in Vector DB.")
+        return
+
+    total_chunks = len(documents)
+    process_limit = min(total_chunks, batch_limit)
+    print(f"Found {total_chunks} chunks. Processing first {process_limit}...")
+
+    # 3. Process and Insert
+    entries_created = 0
+    
+    for i in range(process_limit):
+        chunk_content = documents[i]
+        
+        # Step 1: Extract structure
+        extracted_data = extract_graph_from_text(chunk_content)
+        
+        if extracted_data:
+            # Step 2: Insert into Neo4j
+            material = extracted_data["material"]
+            issue = extracted_data["issue"]
+            causes = extracted_data.get("causes", [])
+            solutions = extracted_data.get("solutions", [])
+            
+            insert_graph(material, issue, causes, solutions)
+            
+            entries_created += 1
+            print(f"[{i+1}/{process_limit}] Inserted: Issue={issue}, Causes={len(causes)}")
+        
+        # To avoid rate limits or overwhelming logs for small batches
+        # time.sleep(0.1) 
+
+    # 4. Cleanup and Report
+    print("\n--- Summary ---")
+    print(f"Total chunks processed: {process_limit}")
+    print(f"Total graph entries created: {entries_created}")
 
 if __name__ == "__main__":
-    build_sample()
-    print("Graph data inserted successfully.")
+    start_time = time.time()
+    
+    # Basic Neo4j connectivity check
+    try:
+        with driver.session() as session:
+            session.run("RETURN 1")
+        print("Connected to Neo4j successfully.")
+    except Exception as e:
+        print(f"Neo4j Connection Failed: {e}")
+        sys.exit(1)
+
+    # Run the build logic
+    # Increased limit to cover all 2028 chunks
+    build_from_vector_db(batch_limit=3000)
+    
     driver.close()
+    print(f"\nExecution finished in {time.time() - start_time:.2f} seconds.")

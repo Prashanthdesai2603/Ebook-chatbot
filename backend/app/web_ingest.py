@@ -19,7 +19,29 @@ EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
 
 URLS = [
-    "https://en.wikipedia.org/wiki/Injection_moulding",
+    "https://www.ptonline.com/articles/california-molding-how-to-make-it-work",
+    "https://www.ptonline.com/articles/what-the-reynolds-number-means-for-injection-mold-cooling-and-how-to-achieve-it",
+    "https://www.ptonline.com/articles/small-shops-big-gains-how-to-know-if-youre-ready-for-automation",
+    "https://www.ptonline.com/articles/making-every-cycle-count-best-practices-in-maintenance-for-maximum-uptime",
+    "https://www.ptonline.com/articles/how-to-design-a-mold-for-injection-molding-a-comprehensive-guide",
+    "https://www.ptonline.com/news/plast-2026-opens-registration-offers-preview",
+    "https://www.ptonline.com/news/drug-delivery-platform-launches",
+    "https://www.ptonline.com/products/high-peformance-packaging-molding-platform",
+    "https://www.ptonline.com/news/mgs-acquires-european-medical-injection-molder-knudsen-plast",
+    "https://www.ptonline.com/products/burger-brown-brings-portability-to-cooling-line-testing-",
+    "https://www.ptonline.com/news/paul-caprio-promoted-to-president-ls-mtron",
+    "https://www.ptonline.com/articles/injection-molding-at-ptxpo-2026",
+    "https://www.ptonline.com/articles/how-small-and-midsized-injection-molders-can-increase-efficiency-and-protect-margins",
+    "https://www.ptonline.com/articles/10-years-of-plastics-technology-top-shops",
+    "https://www.ptonline.com/articles/come-for-the-exhibits-stay-for-education",
+    "https://www.ptonline.com/articles/using-simulation-to-anticipate-correct-core-deflection-in-injection-molding",
+    "https://www.ptonline.com/articles/cobots-bring-custom-injection-molder-greater-flexibility",
+    "https://www.ptonline.com/articles/injection-molding",
+    "https://www.ptonline.com/articles/3d-printing-achieves-break-even-point-versus-injection-molding-at-110000-parts",
+    "https://www.ptonline.com/articles/consider-the-cushion-when-seeking-shot-to-shot-consistency",
+    "https://www.ptonline.com/articles/injection-molding-how-to-get-rid-of-bubbles",
+    "https://www.ptonline.com/articles/improve-quality-productivity-with-advanced-screw-design",
+    "https://www.ptonline.com/articles/moving-beyond-the-relative-viscosity-curve-new-method-to-find-optimum-plastic-flow-rates",
     "https://www.ptonline.com/articles/what-is-scientific-molding",
     "https://www.ptonline.com/articles/injection-molding-process-basics",
     "https://www.ptonline.com/articles/how-to-build-a-successful-sustainable-preventive-maintenance-program",
@@ -29,7 +51,29 @@ URLS = [
     "https://www.ptonline.com/articles/improving-molding-process-capability-understanding-the-pvt-graph-part-1",
     "https://www.ptonline.com/articles/improving-molding-process-capability-the-role-of-the-five-essential-pillars-part-2",
     "https://www.ptonline.com/news/aim-institute-continues-to-grow-plastics-education-and-training-on-10th-anniversary",
-    "https://www.ptonline.com/articles/inside-the-pellet"
+    "https://www.ptonline.com/articles/inside-the-pellet",
+    "https://www.ptonline.com/topics/injection",
+    "https://www.ptonline.com/articles/california-molding-how-to-make-it-work",
+    "https://www.ptonline.com/articles/icymi-march-2026-roundup",
+    "https://www.ptonline.com/articles/too-interesting-times",
+    "https://www.ptonline.com/news/new-president-to-lead-kraussmaffeis-us-operations",
+    "https://www.ptonline.com/articles/solving-plastics-recycling-challenges",
+    "https://www.ptonline.com/articles/april-2026-volume-resin-prices-mostly-up-uncertainty-looms",
+    "https://www.ptonline.com/news/progressive-components-moves-to-100-employee-ownership",
+    "https://www.ptonline.com/articles/its-the-dawn-of-a-new-era-at-mid-south-extrusion",
+    "https://www.ptonline.com/articles/icymi-feb-2026-roundup",
+    "https://www.ptonline.com/articles/qa-sustainable-packaging-strategies-in-2026",
+    "https://www.ptonline.com/articles/fail-no-more-hot-runner-valve-gate-design-eliminates-seals-cooling",
+    "https://www.ptonline.com/news/mgs-acquires-european-medical-injection-molder-knudsen-plast",
+    "https://www.ptonline.com/news/new-president-to-lead-kraussmaffeis-us-operations",
+    "https://www.ptonline.com/articles/solving-plastics-recycling-challenges",
+    "https://www.ptonline.com/articles/april-2026-volume-resin-prices-mostly-up-uncertainty-looms",
+    "https://www.ptonline.com/news/progressive-components-moves-to-100-employee-ownership",
+    "https://www.ptonline.com/articles/its-the-dawn-of-a-new-era-at-mid-south-extrusion",
+    "https://www.ptonline.com/articles/icymi-feb-2026-roundup",
+    "https://www.ptonline.com/articles/qa-sustainable-packaging-strategies-in-2026",
+    "https://www.ptonline.com/articles/fail-no-more-hot-runner-valve-gate-design-eliminates-seals-cooling"
+
 ]
 
 
@@ -95,7 +139,7 @@ def ingest_website():
     print("\nStarting ingestion...")
     
     # Change headless=False if PTonline continues to block you
-    driver = get_driver(headless=True)
+    driver = get_driver(headless=False)
     docs = []
     
     try:

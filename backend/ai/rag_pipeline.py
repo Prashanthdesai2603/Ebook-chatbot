@@ -81,12 +81,14 @@ class HybridRAGPipeline:
 
         if q_type in ("defect", "list"):
             # Extract causes section for defect answers
+            # Updated regex to handle "Possible Causes (minimum 4):" or similar variants
             causes_match = re.search(
-                r"Possible Causes[:\s\*\-]*(.*?)(?=Data to Verify|Corrective Actions|Scientific Explanation|$)",
+                r"Possible Causes[^\:]*[:\s\*\-]*(.*?)(?=Data to Verify|Corrective Actions|Scientific Explanation|$)",
                 answer, re.S | re.I
             )
             if causes_match:
                 causes_text = causes_match.group(1).strip()
+                # Match bullets like -, *, • or numbers like 1.
                 items = re.findall(r"(?:^|\n)\s*[•\-\*]|(?:\d+\.)", causes_text)
                 if len(items) < 4:
                     return False, (
@@ -106,6 +108,7 @@ class HybridRAGPipeline:
                     )
 
         return True, ""
+
 
     def answer_query(self, query: str, mode: str = "detailed") -> str:
         """

@@ -1,22 +1,15 @@
 import React from 'react';
+import Header from './Header';
 
-const ChatLayout = ({ children }) => {
+const ChatLayout = ({ children, onLogout, onClearChat, username }) => {
     return (
-        <div className="flex flex-col h-screen bg-[#f7f7f8]">
-            <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 py-4 px-6 sticky top-0 z-10">
-                <div className="max-w-4xl mx-auto flex justify-between items-center">
-                    <div>
-                        <h1 className="text-xl font-extrabold tracking-tight text-gray-900 flex items-center gap-2">
-                            <span className="text-2xl">🤖</span>
-                            Injection Molding Assistant
-                        </h1>
-                        <p className="text-xs text-gray-400 font-medium">AI-powered knowledge assistant for plastics professionals</p>
-                    </div>
-                </div>
-            </header>
-            <main className="flex-1 overflow-hidden relative">
-                <div className="h-full overflow-y-auto pt-8 pb-32 px-4 scroll-smooth">
-                    <div className="max-w-4xl mx-auto">
+        <div className="flex flex-col h-[100dvh] bg-[#fdfdfe] selection:bg-blue-100">
+            <Header onLogout={onLogout} onClearChat={onClearChat} username={username} />
+
+            <main className="flex-1 overflow-hidden flex flex-col relative">
+                {/* Message area with custom scrollbar */}
+                <div className="flex-1 overflow-y-auto px-4 md:px-0 py-6 scroll-smooth custom-scrollbar">
+                    <div className="max-w-4xl mx-auto flex flex-col gap-1">
                         {children}
                     </div>
                 </div>
