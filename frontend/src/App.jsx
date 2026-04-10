@@ -53,7 +53,7 @@ function Chatbot() {
     setError(null)
 
     try {
-      const response = await axios.post("http://localhost:8000/api/chat", {
+        await axios.post(`${import.meta.env.VITE_API_URL}/chat`, {
         message: currentInput,
         mode: mode
       })

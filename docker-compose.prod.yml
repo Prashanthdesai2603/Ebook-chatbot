@@ -10,10 +10,11 @@ services:
       PYTHONPATH: /app
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT:-3306}
-      DB_MODE: ${DB_MODE:-local}        # local | socket | remote
+      DB_MODE: ${DB_MODE:-socket}        # local | socket | remote
     volumes:
       - vectorstore:/app/data           # named volume — survives container updates
-      - ${MYSQL_SOCKET_PATH:-/tmp/fake.sock}:/var/run/mysqld/mysqld.sock
+      #- ${MYSQL_SOCKET_PATH:-/tmp/fake.sock}:/var/run/mysqld/mysqld.sock
+      - /var/run/mysqld/mysqld.sock:/var/run/mysqld/mysqld.sock
     extra_hosts:
       - "host.docker.internal:host-gateway"
     expose:
@@ -63,8 +64,10 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       target: prod
+      args:                          # ADD THIS
+        - VITE_API_URL=/api
     ports:
-      - "8088:80"                       # host:8088 → container nginx:80
+      - "8002:80"                       # host:8002 → container nginx:80
     depends_on:
       backend:
         condition: service_healthy      # nginx won't start until backend is ready
@@ -89,3 +92,4 @@ volumes:
 networks:
   app-net:
     driver: bridge
+

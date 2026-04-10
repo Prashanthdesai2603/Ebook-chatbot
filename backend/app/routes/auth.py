@@ -1,12 +1,13 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
+import os 
 
 router = APIRouter()
 
 # In-memory user store for simulation
 USERS = {
-    "admin": "admin123"
+    os.getenv("ADMIN_USERNAME", "admin"): os.getenv("ADMIN_PASSWORD", "admin123")
 }
 
 class LoginRequest(BaseModel):

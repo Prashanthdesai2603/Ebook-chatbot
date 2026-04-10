@@ -33,7 +33,7 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:8000/api/login', {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/login`, {
         username,
         password,
       });
