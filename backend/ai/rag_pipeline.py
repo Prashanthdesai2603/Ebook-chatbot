@@ -5,9 +5,8 @@ import time
 from pathlib import Path
 from typing import List, Tuple
 
-# Add project root to sys.path so 'backend.*' absolute imports resolve
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent
-sys.path.append(str(ROOT_DIR))
+# Use env var for vectorstore path (works in Docker and local)
+VECTORSTORE_DIR = Path(os.getenv("VECTOR_PATH", "/app/data/vectorstore"))
 
 # Import required modules
 from langchain_chroma import Chroma
@@ -37,15 +36,15 @@ except ImportError:
         return "Gemini API Error: Module not found."
 
 # Configuration
-VECTORSTORE_DIR = ROOT_DIR / "data" / "vectorstore"
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+
 
 class HybridRAGPipeline:
     def __init__(self):
         print("Initializing Hybrid RAG Pipeline...")
         self.embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
         self.vectorstore: Chroma | None = None
-        
+
         abs_vectorstore_dir = str(VECTORSTORE_DIR.resolve())
         if VECTORSTORE_DIR.exists() and os.listdir(abs_vectorstore_dir):
             self.vectorstore = Chroma(
@@ -63,7 +62,6 @@ class HybridRAGPipeline:
             return ""
         try:
             docs = self.vectorstore.similarity_search(query, k=k)
-            # Combine retrieved chunks into one context block (Step 2)
             context = "\n\n".join([doc.page_content for doc in docs])
             return context
         except Exception as e:
@@ -80,15 +78,12 @@ class HybridRAGPipeline:
             return True, ""
 
         if q_type in ("defect", "list"):
-            # Extract causes section for defect answers
-            # Updated regex to handle "Possible Causes (minimum 4):" or similar variants
             causes_match = re.search(
                 r"Possible Causes[^\:]*[:\s\*\-]*(.*?)(?=Data to Verify|Corrective Actions|Scientific Explanation|$)",
                 answer, re.S | re.I
             )
             if causes_match:
                 causes_text = causes_match.group(1).strip()
-                # Match bullets like -, *, • or numbers like 1.
                 items = re.findall(r"(?:^|\n)\s*[•\-\*]|(?:\d+\.)", causes_text)
                 if len(items) < 4:
                     return False, (
@@ -99,7 +94,6 @@ class HybridRAGPipeline:
                         "venting, and contamination as applicable."
                     )
             else:
-                # For list-type or general defect questions without the template header
                 bullet_items = re.findall(r"(?:^|\n)\s*[•\-\*]", answer)
                 if len(bullet_items) < 3:
                     return False, (
@@ -109,34 +103,28 @@ class HybridRAGPipeline:
 
         return True, ""
 
-
     def answer_query(self, query: str, mode: str = "detailed") -> str:
         """
         Main execution flow:
         User Question -> Detect Type -> Vector Search -> KG Query -> Merge -> LLM -> Validation -> Response
         """
         start_time = time.time()
-        
-        # 1. Detect Question Type (Step 4)
+
+        # 1. Detect Question Type
         q_type = detect_question_type(query)
-        
-        # 2. Vector Search (Step 2: Top 12)
+
+        # 2. Vector Search (Top 12)
         vector_context = self.get_vector_context(query, k=12)
-        
+
         # 3. Knowledge Graph Query (Neo4j and JSON)
-        # --- Get graph data from Neo4j ---
         neo4j_context = get_graph_context(query)
-
-        # --- JSON graph fallback ---
         json_graph_context = query_knowledge_graph(query)
-
-        # Combine both
         graph_context = f"{neo4j_context}\n{json_graph_context}".strip()
-        
-        # 4. Merge Context (Format as requested via utility)
+
+        # 4. Merge Context
         merged_context = merge_context(vector_context, graph_context)
-        
-        # 5. Remove internal file path leaks (Step 7: Source Cleanup)
+
+        # 5. Remove internal file path leaks
         merged_context = re.sub(r'[A-Za-z]:\\[^ \n]*', '[Path Removed]', merged_context)
         merged_context = re.sub(r'/[^ \n]+/[^ \n]+', '[Path Removed]', merged_context)
 
@@ -212,15 +200,13 @@ ABSOLUTE FINAL RULES:
 - Always end your response with: Source: Injection Molding Knowledge Base
 """
 
-        # 7. Model Call
-        # max_attempts is 2 (Step 3: Regenerate if validation fails)
+        # 7. Model Call (max 2 attempts)
         answer: str = ""
-        
+
         for attempt in range(2):
             max_tokens: int = 250 if mode == "short" else 2000
             answer = generate_gemini_answer(full_prompt, temperature=0.1, max_tokens=max_tokens)
-            
-            # Step 3: Response Validation
+
             is_valid, validation_msg = self.validate_response(query, answer, q_type, mode)
             if is_valid:
                 break
@@ -228,19 +214,17 @@ ABSOLUTE FINAL RULES:
                 print(f"Validation failed after attempt {attempt + 1}: {validation_msg}. Retrying...")
                 full_prompt = f"{full_prompt}\n\nERROR IN PREVIOUS RESPONSE: {validation_msg}"
 
-        # 8. Post-processing (Step 7: Source Cleanup)
-        # Ensure path leak protection on output
+        # 8. Post-processing
         answer = re.sub(r'[A-Za-z]:\\[^ \n]*', '[Path Removed]', answer)
-        
-        # Ensure correct source line (Step 7)
+
         if "Source: Injection Molding Knowledge Base" not in answer:
             answer = answer.strip() + "\n\nSource: Injection Molding Knowledge Base"
-        
-        # Log performance (Step 8: Target < 5s)
+
         end_time = time.time()
         print(f"Query processed in {end_time - start_time:.2f} seconds.")
-            
+
         return answer
+
 
 # Global instance
 rag_pipeline = HybridRAGPipeline()

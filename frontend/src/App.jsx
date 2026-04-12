@@ -52,20 +52,19 @@ function Chatbot() {
     setLoading(true)
     setError(null)
 
-    try {
-        await axios.post(`${import.meta.env.VITE_API_URL}/chat`, {
-        message: currentInput,
-        mode: mode
+  try {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/chat`, {
+          message: currentInput,
+          mode: mode
       })
-
       const botMsg = { text: response.data.response, sender: "bot" }
       setMessages(prev => [...prev, botMsg])
-    } catch (error) {
+  } catch (error) {
       console.error("Error:", error)
       setError("I'm having trouble connecting to the knowledge base. Please ensure the backend is running.")
-    }
-    setLoading(false)
   }
+  setLoading(false)
+    }
 
   return (
     <ChatLayout onLogout={handleLogout} onClearChat={handleClearChat} username={username}>

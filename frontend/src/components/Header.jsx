@@ -1,7 +1,21 @@
-import React from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { LogOut, User, MessageSquare } from 'lucide-react';
 
 const Header = ({ onLogout, onClearChat, username = "Professional User" }) => {
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+    const dropdownRef = useRef(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     return (
         <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 py-3 px-6 sticky top-0 z-50">
             <div className="max-w-5xl mx-auto flex justify-between items-center w-full">
@@ -24,11 +38,15 @@ const Header = ({ onLogout, onClearChat, username = "Professional User" }) => {
                     >
                         Clear Chat
                     </button>
-                    
+
                     <div className="h-6 w-px bg-gray-200 mx-1"></div>
 
-                    <div className="group relative">
-                        <div className="flex items-center gap-3 cursor-pointer p-1 rounded-full hover:bg-gray-50 transition-all">
+                    {/* Profile Dropdown */}
+                    <div className="relative" ref={dropdownRef}>
+                        <div
+                            className="flex items-center gap-3 cursor-pointer p-1 rounded-full hover:bg-gray-50 transition-all"
+                            onClick={() => setDropdownOpen(!dropdownOpen)}
+                        >
                             <div className="text-right hidden sm:block">
                                 <p className="text-xs font-bold text-gray-800">{username}</p>
                                 <p className="text-[10px] text-green-500 font-medium">Online</p>
@@ -38,19 +56,20 @@ const Header = ({ onLogout, onClearChat, username = "Professional User" }) => {
                             </div>
                         </div>
 
-                        {/* Profile Dropdown */}
-                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                            <div className="px-4 py-2 border-b border-gray-50 mb-1">
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Account</p>
+                        {dropdownOpen && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50">
+                                <div className="px-4 py-2 border-b border-gray-50 mb-1">
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Account</p>
+                                </div>
+                                <button
+                                    onClick={() => { setDropdownOpen(false); onLogout(); }}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                >
+                                    <LogOut className="w-4 h-4" />
+                                    Logout
+                                </button>
                             </div>
-                            <button
-                                onClick={onLogout}
-                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors"
-                            >
-                                <LogOut className="w-4 h-4" />
-                                Logout
-                            </button>
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>
