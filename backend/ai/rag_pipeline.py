@@ -5,8 +5,14 @@ import time
 from pathlib import Path
 from typing import List, Tuple
 
-# Use env var for vectorstore path (works in Docker and local)
-VECTORSTORE_DIR = Path(os.getenv("VECTOR_PATH", "/app/data/vectorstore"))
+# Use env var for vectorstore path, fallback to local path for Windows/Local dev
+VECTOR_PATH = os.getenv("VECTOR_PATH", "./data/vectorstore")
+VECTORSTORE_DIR = Path(VECTOR_PATH)
+
+# If it doesn't exist relative to backend, try relative to project root
+if not VECTORSTORE_DIR.exists():
+    ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+    VECTORSTORE_DIR = ROOT_DIR / "data" / "vectorstore"
 
 # Import required modules
 from langchain_chroma import Chroma
@@ -103,7 +109,7 @@ class HybridRAGPipeline:
 
         return True, ""
 
-    def answer_query(self, query: str, mode: str = "detailed") -> str:
+    def answer_query(self, query: str, mode: str = "detailed", history_context: str = "") -> str:
         """
         Main execution flow:
         User Question -> Detect Type -> Vector Search -> KG Query -> Merge -> LLM -> Validation -> Response
@@ -182,10 +188,14 @@ class HybridRAGPipeline:
                 "into your Possible Causes list. Do NOT ignore this data."
             )
 
-        full_prompt = f"""{SYSTEM_PROMPT}
-{graph_priority_note}
+        # Build chat history string
+        history_str = ""
+        if history_context:
+            history_str = f"CONVERSATION HISTORY:\n{history_context}\n\n"
 
-CONTEXT (use ALL relevant data from both Vector and Graph Knowledge sections below):
+        full_prompt = f"""{SYSTEM_PROMPT}
+
+{history_str}CONTEXT (use ALL relevant data from both Vector and Graph Knowledge sections below):
 {merged_context}
 
 USER QUESTION:
