@@ -59,10 +59,11 @@ class MySQLChatLogger:
             cursor.execute(f"USE `{db_name}`")
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS chat_history (
-                    id        INT AUTO_INCREMENT PRIMARY KEY,
-                    query     TEXT        NOT NULL,
-                    response  TEXT        NOT NULL,
-                    timestamp DATETIME    DEFAULT CURRENT_TIMESTAMP
+                    id          INT AUTO_INCREMENT PRIMARY KEY,
+                    session_id  VARCHAR(255),
+                    query       TEXT        NOT NULL,
+                    response    TEXT        NOT NULL,
+                    timestamp   DATETIME    DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             self.conn.commit()
@@ -79,17 +80,25 @@ class MySQLChatLogger:
             self.conn = None
 
     def log_chat(self, query: str, response: str):
+        self.save_chat("legacy", query, response)
+
+    def save_chat(self, session_id: str, query: str, response: str):
         if not self.conn:
             return
         try:
             cursor = self.conn.cursor()
+            # Check if column exists (for backward compatibility if table exists)
+            cursor.execute("SHOW COLUMNS FROM chat_history LIKE 'session_id'")
+            if not cursor.fetchone():
+                 cursor.execute("ALTER TABLE chat_history ADD COLUMN session_id VARCHAR(255) AFTER id")
+            
             cursor.execute(
-                "INSERT INTO chat_history (query, response) VALUES (%s, %s)",
-                (query, response),
+                "INSERT INTO chat_history (session_id, query, response) VALUES (%s, %s, %s)",
+                (session_id, query, response),
             )
             self.conn.commit()
         except Exception as e:
-            print(f"[mysql_logger] Error logging chat: {e}")
+            print(f"[mysql_logger] Error saving chat: {e}")
 
     def close(self):
         if self.conn:
