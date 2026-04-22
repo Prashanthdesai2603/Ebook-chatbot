@@ -256,7 +256,7 @@ const SignIn = () => {
                   Processing...
                 </>
               ) : (
-                'Complete Sign In'
+                'Complete Sign Up'
               )}
             </button>
           </div>
