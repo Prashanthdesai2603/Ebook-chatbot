@@ -11,7 +11,7 @@ def generate_gemini_answer(prompt: str, temperature: float = 0.2, max_tokens: in
         return "Gemini API Key missing."
     
     # We use requests directly to bypass SDK-specific DNS/connectivity issues
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={API_KEY}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={API_KEY}"
     
     payload = {
         "contents": [{

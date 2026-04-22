@@ -67,7 +67,7 @@ services:
       args:                          # ADD THIS
         - VITE_API_URL=/api
     ports:
-      - "8002:80"                       # host:8002 → container nginx:80
+      - "8004:80"                       # host:8002 → container nginx:80
     depends_on:
       backend:
         condition: service_healthy      # nginx won't start until backend is ready
