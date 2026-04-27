@@ -37,9 +37,14 @@ from .prompts import (
 try:
     from backend.app.gemini_model import generate_gemini_answer
 except ImportError:
-    # Fallback or dummy if not found during standalone tests
     def generate_gemini_answer(prompt, **kwargs):
         return "Gemini API Error: Module not found."
+
+# Import feedback store for few-shot learning (graceful fallback if DB unavailable)
+try:
+    from backend.app.feedback_store import feedback_store as _feedback_store
+except Exception:
+    _feedback_store = None
 
 # Configuration
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
@@ -193,10 +198,29 @@ class HybridRAGPipeline:
         if history_context:
             history_str = f"CONVERSATION HISTORY:\n{history_context}\n\n"
 
+        # ── Few-shot examples from RLHF feedback ──────────────────────────
+        few_shot_block = ""
+        try:
+            if _feedback_store:
+                good_examples = _feedback_store.get_good_examples(limit=3)
+                if good_examples:
+                    examples_text = "\n".join(
+                        f"Q: {ex['question']}\nA: {ex['answer']}\n"
+                        for ex in good_examples
+                    )
+                    few_shot_block = (
+                        "\n\nVERIFIED GOOD EXAMPLES (user-approved answers — match this style, "
+                        "specificity, and depth):\n"
+                        + examples_text
+                    )
+        except Exception as _fs_err:
+            print(f"[rag_pipeline] Few-shot fetch skipped: {_fs_err}")
+
         full_prompt = f"""{SYSTEM_PROMPT}
 
 {history_str}CONTEXT (use ALL relevant data from both Vector and Graph Knowledge sections below):
 {merged_context}
+{few_shot_block}
 
 USER QUESTION:
 {query}
@@ -206,6 +230,9 @@ MODE: {mode}
 {prompt_instructions}
 
 ABSOLUTE FINAL RULES:
+- Give SPECIFIC, material-grade-level answers whenever data allows.
+- Avoid generic responses like "it depends" without following up with a concrete value.
+- Use structured answers with sections wherever applicable.
 - Never mention local file paths.
 - Always end your response with: Source: Injection Molding Knowledge Base
 """

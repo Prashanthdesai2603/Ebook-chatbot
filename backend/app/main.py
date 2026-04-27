@@ -13,6 +13,7 @@ if str(ROOT_DIR) not in sys.path:
 from backend.ai.rag_pipeline import rag_pipeline
 from backend.app.mysql_logger import chat_logger
 from backend.app.routes import auth
+from backend.app.routes import feedback
 
 app = FastAPI(title="Offline eBook Chatbot")
 
@@ -33,6 +34,7 @@ app.add_middleware(
 
 # Include Authentication Routes
 app.include_router(auth.router, prefix="/api", tags=["Auth"])
+app.include_router(feedback.router, prefix="/api", tags=["Feedback"])
 
 
 class ChatRequest(BaseModel):

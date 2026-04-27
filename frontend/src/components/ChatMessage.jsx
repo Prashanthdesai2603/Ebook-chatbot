@@ -1,14 +1,40 @@
 import React from 'react';
-import { Copy, Check, CheckCheck } from 'lucide-react';
+import { Copy, Check, CheckCheck, ThumbsUp, ThumbsDown } from 'lucide-react';
+import axios from 'axios';
 
-const ChatMessage = ({ message }) => {
+const ChatMessage = ({ message, sessionId }) => {
     const isBot = message.sender === 'bot';
     const [copied, setCopied] = React.useState(false);
+    const [feedbackState, setFeedbackState] = React.useState(null); // null | 'good' | 'bad'
+    const [feedbackSent, setFeedbackSent] = React.useState(false);
+    const [feedbackLoading, setFeedbackLoading] = React.useState(false);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(message.text);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const handleFeedback = async (type) => {
+        if (feedbackSent || feedbackLoading) return;
+        setFeedbackLoading(true);
+        setFeedbackState(type);
+
+        try {
+            await axios.post(`${import.meta.env.VITE_API_URL}/feedback`, {
+                session_id: sessionId || 'anonymous',
+                question: message.question || '',
+                answer: message.text,
+                feedback: type,
+            });
+            setFeedbackSent(true);
+        } catch (err) {
+            console.error('Feedback error:', err);
+            // Still mark as sent so UI stays responsive
+            setFeedbackSent(true);
+        } finally {
+            setFeedbackLoading(false);
+        }
     };
 
     const formatTimestamp = () => {
@@ -30,7 +56,7 @@ const ChatMessage = ({ message }) => {
                         <div className={`text-[15px] leading-relaxed whitespace-pre-wrap font-medium`}>
                             {message.text}
                         </div>
-                        
+
                         <div className={`flex items-center justify-end gap-1.5 mt-1 opacity-60`}>
                             <span className="text-[10px] font-medium tracking-tight">
                                 {formatTimestamp()}
@@ -53,6 +79,60 @@ const ChatMessage = ({ message }) => {
                         </button>
                     )}
                 </div>
+
+                {/* Feedback Bar — only on bot messages */}
+                {isBot && (
+                    <div className="flex items-center gap-2 mt-1.5 pl-1">
+                        {feedbackSent ? (
+                            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 animate-fade-in bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                                <Check className="w-3 h-3" />
+                                Thanks for your feedback!
+                            </span>
+                        ) : (
+                            <>
+                                <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">
+                                    Helpful?
+                                </span>
+                                <button
+                                    id={`feedback-good-${message.id}`}
+                                    onClick={() => handleFeedback('good')}
+                                    disabled={feedbackSent || feedbackLoading}
+                                    title="Good response"
+                                    className={`
+                                        flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold
+                                        transition-all duration-200 border
+                                        ${feedbackState === 'good'
+                                            ? 'bg-emerald-50 text-emerald-600 border-emerald-300 scale-105'
+                                            : 'bg-white text-gray-400 border-gray-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-300 hover:scale-105'
+                                        }
+                                        ${feedbackSent ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                                    `}
+                                >
+                                    <ThumbsUp className="w-3.5 h-3.5" />
+                                    Good
+                                </button>
+                                <button
+                                    id={`feedback-bad-${message.id}`}
+                                    onClick={() => handleFeedback('bad')}
+                                    disabled={feedbackSent || feedbackLoading}
+                                    title="Bad response"
+                                    className={`
+                                        flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-semibold
+                                        transition-all duration-200 border
+                                        ${feedbackState === 'bad'
+                                            ? 'bg-rose-50 text-rose-600 border-rose-300 scale-105'
+                                            : 'bg-white text-gray-400 border-gray-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-300 hover:scale-105'
+                                        }
+                                        ${feedbackSent ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                                    `}
+                                >
+                                    <ThumbsDown className="w-3.5 h-3.5" />
+                                    Bad
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );
