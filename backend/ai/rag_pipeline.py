@@ -31,6 +31,7 @@ from .prompts import (
     get_list_instruction,
     get_general_instruction,
     get_technical_issue_instruction,
+    get_process_instruction,
 )
 
 # Import API calls from existing backend logic
@@ -90,11 +91,12 @@ class HybridRAGPipeline:
 
         if q_type in ("defect", "list"):
             causes_match = re.search(
-                r"Possible Causes[^\:]*[:\s\*\-]*(.*?)(?=Data to Verify|Corrective Actions|Scientific Explanation|$)",
+                r"(?:\*\*Causes:\*\*|Possible Causes)[^\:]*[:\s\*\-]*(.*?)(?=\*\*Solutions / Steps:\*\*|\*\*Tip:\*\*|Data to Verify|Corrective Actions|Scientific Explanation|$)",
                 answer, re.S | re.I
             )
             if causes_match:
                 causes_text = causes_match.group(1).strip()
+                # Match bullets or numbered items in the causes section
                 items = re.findall(r"(?:^|\n)\s*[•\-\*]|(?:\d+\.)", causes_text)
                 if len(items) < 4:
                     return False, (
@@ -174,9 +176,8 @@ class HybridRAGPipeline:
             )
         elif q_type == "process":
             prompt_instructions = (
-                "\nPROCESS MODE: Provide typical industrial ranges with units. "
-                "State consequences of operating outside the recommended range. "
-                "Note material-grade dependencies."
+                f"\nPROCESS MODE — Follow this structure EXACTLY:\n"
+                f"{get_process_instruction()}"
             )
         else:
             prompt_instructions = (
