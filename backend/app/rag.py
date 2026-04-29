@@ -133,9 +133,11 @@ USER REQUESTED MODE: {mode_instruction}
 INSTRUCTIONS:
 1. Use ONLY the provided context.
 2. If the user is in SHORT MODE, ignore the detailed structures and provide a 2-3 sentence technical answer.
-3. If in DETAILED MODE and the type is 'defect', you MUST provide AT LEAST 4 CAUSES using the structure: Problem, Possible Causes (min 4), Data to Verify, Corrective Actions, and Scientific Explanation.
-4. Ensure no local file paths are mentioned.
-5. End with 'Source: Injection Molding Knowledge Base'.
+3. If in DETAILED MODE, you MUST use the structured Markdown format: **Definition:**, **Causes:**, **Solutions:**, and **Tip:**.
+4. For 'defect' queries, ensure at least 4 distinct causes are listed under **Causes:**.
+5. Highlight important technical values in **BOLD**.
+6. Ensure no local file paths are mentioned.
+7. End with 'Source: Injection Molding Knowledge Base'.
 """
 
         # 5. Model Call

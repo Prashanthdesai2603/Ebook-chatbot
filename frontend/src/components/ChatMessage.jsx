@@ -1,8 +1,10 @@
 import React from 'react';
 import { Copy, Check, CheckCheck, ThumbsUp, ThumbsDown } from 'lucide-react';
 import axios from 'axios';
+import ReactMarkdown from "react-markdown";
 
 const ChatMessage = ({ message, sessionId }) => {
+
     const isBot = message.sender === 'bot';
     const [copied, setCopied] = React.useState(false);
     const [feedbackState, setFeedbackState] = React.useState(null); // null | 'good' | 'bad'
@@ -53,8 +55,10 @@ const ChatMessage = ({ message, sessionId }) => {
                     }
                 `}>
                     <div className="flex flex-col gap-1">
-                        <div className={`text-[15px] leading-relaxed whitespace-pre-wrap font-medium`}>
-                            {message.text}
+                        <div className="markdown-body text-[15px] leading-relaxed font-medium">
+                            <ReactMarkdown>
+                                {message.text}
+                            </ReactMarkdown>
                         </div>
 
                         <div className={`flex items-center justify-end gap-1.5 mt-1 opacity-60`}>
